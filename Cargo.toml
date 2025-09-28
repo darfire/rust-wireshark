@@ -1,0 +1,11 @@
+[package]
+name = "rust-wireshark"
+version = "0.1.0"
+edition = "2024"
+build="build.rs"
+
+[dependencies]
+clap = { version = "4.5.48", features = ["derive"] }
+
+[build-dependencies]
+bindgen = "0.72.1"
