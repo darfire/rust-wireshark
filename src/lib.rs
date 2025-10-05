@@ -2,8 +2,11 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+
+pub mod error;
+pub mod wtap_wrapper;
+pub mod rec_wrapper;
 
 #[cfg(test)]
 mod tests {

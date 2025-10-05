@@ -2,8 +2,11 @@
 
 #define _WRAPPER_H
 
-#include <wireshark/wireshark.h>
-#include <wireshark/epan/epan.h>
-#include <wireshark/wiretap/wtap.h>
+#include <wireshark.h>
+#include <epan/column-info.h>
+#include <epan/epan.h>
+#include <epan/epan_dissect.h>
+#include <epan/print.h>
+#include <wiretap/wtap.h>
 
 #endif

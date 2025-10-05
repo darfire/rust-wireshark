@@ -21,9 +21,9 @@ fn main() {
   ];
   
   clang_args.extend([
-    format!("-I{}/wireshark/", ws_dir),
     format!("-I{}/", ws_dir),
     format!("-I{}/include/", ws_dir),
+    format!("-I{}/wiretap/", ws_dir),
     format!("-I{}/wsutil/", ws_dir),
     format!("-I{}/build/", ws_dir),
   ]);
@@ -34,7 +34,7 @@ fn main() {
   let bindings = bindgen::Builder::default()
     // The input header we would like to generate
     // bindings for.
-    .clang_args(clang_args)
+    .clang_args(&clang_args)
     .emit_clang_ast()
     .header("wrapper.h")
     // Tell cargo to invalidate the built crate whenever any of the
