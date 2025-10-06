@@ -7,33 +7,26 @@ pub mod raw {
 }
 
 pub mod error;
-pub mod wtap_wrapper;
-pub mod rec_wrapper;
+pub mod wtap;
+pub mod epan;
 
 pub use error::*;
-pub use wtap_wrapper::*;
-pub use rec_wrapper::*;
+pub use wtap::*;
+pub use epan::*;
 
 
-#[cfg(test)]
-mod tests {
-  use super::*;
+pub fn wtap_init() {
+  unsafe {
+    raw::wtap_init(false);
+  }  
+}
 
-  #[test]
-  fn it_works() {
-      let c_str = CString::new("1.pcap").unwrap();
-      let mut err: ::std::os::raw::c_int = 0;
-      let mut err_info: *mut gchar = std::ptr::null_mut();
-
-      unsafe {
-        let wt: *mut wtap = raw::wtap_open_offline(
-            c_str.as_ptr(),
-            0,
-            (&mut err) as *mut ::std::os::raw::c_int,
-            (&mut err_info) as *mut *mut gchar,
-            0);
-        
-        println!("Got err: {:?}, err_info: {:?}, wtap: {:?}", err, err_info, wt);
-      }
+pub fn epan_init() -> bool {
+  unsafe {
+    raw::epan_init(
+      None,
+      std::ptr::null_mut(),
+      false,
+    )
   }
 }

@@ -5,7 +5,6 @@ use std::fmt;
 use crate::*;
 
 use crate::error::WsError;
-use crate::rec_wrapper::ParsedRec;
 
 
 pub struct Wtap {
@@ -153,85 +152,5 @@ impl Wtap {
         Ok(rec)
       }
     }
-  }
-}
-
-#[derive(Debug)]
-pub struct InnerEpanSession {
-  pub (crate) epan: *mut raw::epan_session,
-}
-
-pub struct Session {
-  pub (crate) epan: Rc<RefCell<InnerEpanSession>>
-}
-
-impl Drop for InnerEpanSession {
-  fn drop(&mut self) {
-    unsafe {
-      raw::epan_free(self.epan);
-    }
-  }
-}
-
-impl Session {
-  pub fn new() -> Session {
-    let epan = unsafe {
-      let funcs = raw::packet_provider_funcs{
-        get_frame_ts: None,
-        get_interface_name: None,
-        get_interface_description: None,
-        get_modified_block: None,
-        get_process_id: None,
-        get_process_name: None,
-        get_process_uuid: None,
-        get_start_ts: None,
-      };
-
-      raw::epan_new(
-        std::ptr::null_mut(),
-        (&funcs) as *const raw::packet_provider_funcs,
-      )
-    };
-    
-    Session {
-      epan: Rc::new(RefCell::new(InnerEpanSession {
-        epan,
-      })),
-    }
-  }
-    
-  pub fn dissect(&mut self, rec: &mut WtapRec) -> Pin<Box<ParsedRec>> {
-    let mut prec = ParsedRec::new(self.epan.clone(), rec);
-    let raw_rec = &mut rec.rec.borrow_mut().rec;
-    
-    unsafe {
-      raw::epan_dissect_run(
-        (&mut prec.edt) as *mut raw::epan_dissect_t,
-        rec.file_type,
-        raw_rec as *mut raw::wtap_rec,
-        (&mut prec.fdata) as *mut raw::frame_data,
-        std::ptr::null_mut(),
-      );
-    };
-    
-    prec.was_dissected = true;
-    
-    prec
-  }
-}
-
-pub fn wtap_init() {
-  unsafe {
-    raw::wtap_init(false);
-  }  
-}
-
-pub fn epan_init() -> bool {
-  unsafe {
-    raw::epan_init(
-      None,
-      std::ptr::null_mut(),
-      false,
-    )
   }
 }
