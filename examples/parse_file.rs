@@ -21,18 +21,30 @@ fn main() {
 
   let mut wtap = Wtap::new(args.file).unwrap();
 
-  let mut session = Session::new();
+  let session = Session::new();
+  
+  let dfilter = DFilter::new("udp.srcport == 53".to_string()).unwrap();
 
   loop {
-    let mut rec = wtap.read();
+    let rec = wtap.read();
 
     match rec {
       Ok(mut rec) => {
         println!("Got record!");
+        
+        let mut prec = session.new_prec(&mut rec);
+        
+        prec.prime_dfilter(&dfilter);
 
-        let prec = session.dissect(&mut rec);
-
+        prec.dissect();
+        
         let root_node = prec.get_root_node().unwrap();
+
+        if dfilter.apply_rec(&prec) {
+          println!("Record matches {}", dfilter);
+        } else {
+          println!("Record does not match {}", dfilter);
+        }
 
         println!(
           "ip.src: {:?}",

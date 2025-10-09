@@ -11,12 +11,16 @@ pub mod error;
 pub mod fvalue;
 pub mod proto;
 pub mod wtap;
+pub mod dfilter;
+mod utils;
 
 pub use epan::*;
 pub use error::*;
 pub use fvalue::*;
 pub use proto::*;
 pub use wtap::*;
+pub use dfilter::*;
+
 
 pub fn wtap_init() {
   unsafe {

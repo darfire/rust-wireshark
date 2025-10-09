@@ -6,16 +6,14 @@ use crate::wtap::*;
 use crate::*;
 
 #[derive(Debug)]
-pub(crate) struct InnerParsedRec {
-  pub(crate) fdata: raw::frame_data,
+pub(crate) struct Edt {
   pub(crate) edt: raw::epan_dissect_t,
 }
 
-impl InnerParsedRec {
+impl Edt {
   pub(crate) fn new() -> Self {
     unsafe {
-      InnerParsedRec {
-        fdata: std::mem::zeroed(),
+      Edt {
         edt: std::mem::zeroed(),
       }
     }
@@ -25,38 +23,32 @@ impl InnerParsedRec {
 #[derive(Debug)]
 pub struct ParsedRec {
   pub(crate) session: Rc<RefCell<InnerEpanSession>>,
-  #[expect(unused)]
   pub(crate) rec: Rc<RefCell<InnerWtapRec>>,
-  pub(crate) inner_pr: Rc<RefCell<Pin<Box<InnerParsedRec>>>>,
+  pub(crate) inner_pr: Rc<RefCell<Pin<Box<Edt>>>>,
   pub(crate) root_node: Option<ProtoNode>,
+  pub(crate) offset: raw::gint64,
+  pub(crate) file_type: i32,
 }
 
-impl Drop for InnerParsedRec {
+impl Drop for Edt {
   fn drop(&mut self) {
     unsafe {
-      //raw::epan_dissect_free((&mut self.edt) as *mut raw::epan_dissect_t);
-      raw::frame_data_destroy((&mut self.fdata) as *mut raw::frame_data);
+      raw::epan_dissect_cleanup((&mut self.edt) as *mut raw::epan_dissect_t);
     }
   }
 }
 
 impl ParsedRec {
-  pub(crate) fn new(session: Rc<RefCell<InnerEpanSession>>, rec: &mut WtapRec) -> ParsedRec {
+  fn new(session: Rc<RefCell<InnerEpanSession>>, rec: &mut WtapRec) -> ParsedRec {
     unsafe {
       let prec = ParsedRec {
         session: session.clone(),
         rec: rec.rec.clone(),
-        inner_pr: Rc::new(RefCell::new(Pin::new(Box::new(InnerParsedRec::new())))),
+        inner_pr: Rc::new(RefCell::new(Pin::new(Box::new(Edt::new())))),
         root_node: None,
+        offset: rec.offset,
+        file_type: rec.file_type,
       };
-
-      raw::frame_data_init(
-        (&mut prec.inner_pr.borrow_mut().fdata) as *mut raw::frame_data,
-        1,
-        (&mut rec.rec.borrow_mut().rec) as *mut raw::wtap_rec,
-        rec.offset,
-        0,
-      );
 
       raw::epan_dissect_init(
         (&mut prec.inner_pr.borrow_mut().edt) as *mut raw::epan_dissect_t,
@@ -66,6 +58,15 @@ impl ParsedRec {
       );
 
       prec
+    }
+  }
+
+  pub fn prime_dfilter(&self, dfilter: &DFilter) -> () {
+    unsafe {
+      raw::epan_dissect_prime_with_dfilter(
+        (&mut self.inner_pr.borrow_mut().edt) as *mut raw::epan_dissect_t,
+        dfilter.dfp,
+      )
     }
   }
 
@@ -80,6 +81,35 @@ impl ParsedRec {
     let root = self.get_root_node()?;
 
     Ok(root.get_children())
+  }
+
+  pub fn dissect(&mut self) -> () {
+    let raw_rec = &mut self.rec.borrow_mut().rec;
+
+    self.root_node = unsafe {
+      let mut inner_pr = self.inner_pr.borrow_mut();
+      let mut fdata: raw::frame_data = std::mem::zeroed();
+
+      raw::frame_data_init(
+        (&mut fdata) as *mut raw::frame_data,
+        1,
+        raw_rec as *mut raw::wtap_rec,
+        self.offset,
+        0,
+      );
+
+      raw::epan_dissect_run(
+        (&mut inner_pr.edt) as *mut raw::epan_dissect_t,
+        self.file_type,
+        raw_rec as *mut raw::wtap_rec,
+        (&mut fdata) as *mut raw::frame_data,
+        std::ptr::null_mut(),
+      );
+
+      raw::frame_data_destroy((&mut fdata) as *mut raw::frame_data);
+
+      Some(ProtoNode::new(self.inner_pr.clone(), inner_pr.edt.tree, 0))
+    };
   }
 }
 
@@ -125,23 +155,7 @@ impl Session {
     }
   }
 
-  pub fn dissect(&mut self, rec: &mut WtapRec) -> ParsedRec {
-    let mut prec = ParsedRec::new(self.epan.clone(), rec);
-    let raw_rec = &mut rec.rec.borrow_mut().rec;
-
-    prec.root_node = unsafe {
-      let mut inner_pr = prec.inner_pr.borrow_mut();
-      raw::epan_dissect_run(
-        (&mut inner_pr.edt) as *mut raw::epan_dissect_t,
-        rec.file_type,
-        raw_rec as *mut raw::wtap_rec,
-        (&mut inner_pr.fdata) as *mut raw::frame_data,
-        std::ptr::null_mut(),
-      );
-
-      Some(ProtoNode::new(prec.inner_pr.clone(), inner_pr.edt.tree, 0))
-    };
-
-    prec
+  pub fn new_prec(&self, rec: &mut WtapRec) -> ParsedRec {
+    ParsedRec::new(self.epan.clone(), rec)
   }
 }

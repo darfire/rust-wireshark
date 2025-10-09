@@ -1,19 +1,19 @@
 use std::ffi::CStr;
 use std::{cell::RefCell, pin::Pin, rc::Rc};
 
-use crate::InnerParsedRec;
+use crate::Edt;
 use crate::raw;
 
 #[derive(Debug)]
 pub struct FValue {
   #[expect(unused)]
-  prec: Rc<RefCell<Pin<Box<InnerParsedRec>>>>,
+  prec: Rc<RefCell<Pin<Box<Edt>>>>,
   fvalue: *mut raw::fvalue_t,
 }
 
 impl FValue {
   pub(crate) fn new(
-    prec: Rc<RefCell<Pin<Box<InnerParsedRec>>>>,
+    prec: Rc<RefCell<Pin<Box<Edt>>>>,
     fvalue: *mut raw::fvalue_t,
   ) -> Self {
     FValue { prec, fvalue }

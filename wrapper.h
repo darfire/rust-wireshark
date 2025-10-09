@@ -9,6 +9,7 @@
 #include <epan/print.h>
 #include <epan/ftypes/ftypes.h>
 #include <epan/ftypes/ftypes-int.h>
+#include <epan/dfilter/dfilter.h>
 #include <wiretap/wtap.h>
 
 #endif

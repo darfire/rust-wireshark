@@ -1,17 +1,17 @@
 use std::collections::VecDeque;
-use std::ffi::CStr;
 use std::fmt;
 use std::pin::Pin;
 use std::{cell::RefCell, rc::Rc};
 
 use crate::raw;
-use crate::{FValue, InnerParsedRec};
+use crate::utils;
+use crate::{FValue, Edt};
 
 #[derive(Debug)]
 pub struct ProtoNode {
-  prec: Rc<RefCell<Pin<Box<InnerParsedRec>>>>,
+  prec: Rc<RefCell<Pin<Box<Edt>>>>,
 
-  raw_node: *mut raw::proto_node,
+  pub(crate) raw_node: *mut raw::proto_node,
 
   depth: i16,
 }
@@ -20,7 +20,7 @@ impl fmt::Display for ProtoNode {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     write!(
       f,
-      "ProtoNode {{ a={}, d={}}}",
+      "ProtoNode {{ a={}, d={} }}",
       self.get_abbrev(),
       self.depth
     )
@@ -43,13 +43,9 @@ impl PartialEq for ProtoNode {
   }
 }
 
-fn cstr_to_string(cstr: *const raw::gchar) -> String {
-  unsafe { CStr::from_ptr(cstr).to_str().unwrap().to_string() }
-}
-
 impl ProtoNode {
   pub(crate) fn new(
-    prec: Rc<RefCell<Pin<Box<InnerParsedRec>>>>,
+    prec: Rc<RefCell<Pin<Box<Edt>>>>,
     raw_node: *mut raw::proto_node,
     depth: i16,
   ) -> Self {
@@ -64,7 +60,7 @@ impl ProtoNode {
     unsafe {
       let hfinfo = (*self.raw_node).hfinfo;
 
-      cstr_to_string((*hfinfo).abbrev)
+      utils::cstr_to_string((*hfinfo).abbrev)
     }
   }
 

@@ -27,5 +27,6 @@ impl Display for WsError {
 pub enum Error {
   EOF,
   NotDissected,
+  InvalidFilter(String),
   WsError(WsError),
 }
