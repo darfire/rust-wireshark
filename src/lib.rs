@@ -6,27 +6,24 @@ pub mod raw {
   include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
 
-pub mod error;
-pub mod wtap;
 pub mod epan;
+pub mod error;
+pub mod fvalue;
+pub mod proto;
+pub mod wtap;
 
-pub use error::*;
-pub use wtap::*;
 pub use epan::*;
-
+pub use error::*;
+pub use fvalue::*;
+pub use proto::*;
+pub use wtap::*;
 
 pub fn wtap_init() {
   unsafe {
     raw::wtap_init(false);
-  }  
+  }
 }
 
 pub fn epan_init() -> bool {
-  unsafe {
-    raw::epan_init(
-      None,
-      std::ptr::null_mut(),
-      false,
-    )
-  }
+  unsafe { raw::epan_init(None, std::ptr::null_mut(), false) }
 }

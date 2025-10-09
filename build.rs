@@ -1,25 +1,26 @@
 use std::env;
-use std::path::PathBuf;
 use std::fmt;
+use std::path::PathBuf;
 
 fn main() {
-  
   let ws_dir = std::env::var("WS_DIR").expect("WS_DIR not set");
 
-  // Tell cargo to look for shared libraries in the specified directory
-  // shared library.
   println!("cargo:rustc-link-lib=wireshark");
   println!("cargo:rustc-link-lib=wiretap");
   println!("cargo:rustc-link-lib=wsutil");
-  println!("cargo:rustc-link-search={}/build/run/", ws_dir);
+  println!("cargo:rustc-link-lib=glib-2.0");
 
-  
+  // Tell cargo to look for shared libraries in the specified directory
+  // shared library.
+  println!("cargo:rustc-link-search={}/build/run/", ws_dir);
+  // println!("cargo:rustc-link-search=/usr/lib/x86_64-linux-gnu/");
+
   let mut clang_args: Vec<String> = vec![
     "-I/usr/lib/x86_64-linux-gnu/glib-2.0/include".into(),
     "-I/usr/include/".into(),
     "-I/usr/include/glib-2.0/".into(),
   ];
-  
+
   clang_args.extend([
     format!("-I{}/", ws_dir),
     format!("-I{}/include/", ws_dir),

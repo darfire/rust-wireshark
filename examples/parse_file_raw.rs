@@ -1,8 +1,11 @@
 extern crate rust_wireshark;
 
 use clap::Parser;
+use rust_wireshark::{
+  raw::{fvalue_length2, g_slist_length},
+  *,
+};
 use std::ffi::{CStr, CString};
-use rust_wireshark::*;
 use std::mem;
 
 #[derive(Parser, Debug)]
@@ -13,7 +16,7 @@ struct Args {
 }
 
 unsafe fn do_epan_init() -> *mut raw::epan_t {
-  let funcs = raw::packet_provider_funcs{
+  let funcs = raw::packet_provider_funcs {
     get_frame_ts: None,
     get_interface_name: None,
     get_interface_description: None,
@@ -24,42 +27,46 @@ unsafe fn do_epan_init() -> *mut raw::epan_t {
     get_start_ts: None,
   };
 
-  return raw::epan_new(std::ptr::null_mut(), (&funcs) as *const raw::packet_provider_funcs);
+  return raw::epan_new(
+    std::ptr::null_mut(),
+    (&funcs) as *const raw::packet_provider_funcs,
+  );
 }
 
-unsafe fn iterate_proto_node<F>(node: *const raw::proto_tree, cb: &F, depth: u16 )
-where F: Fn(u16, *const raw::proto_tree) {
+unsafe fn iterate_proto_node<F>(node: *const raw::proto_tree, cb: &F, depth: u16)
+where
+  F: Fn(u16, *const raw::proto_tree),
+{
   if (node).is_null() {
     return;
   }
-  
-  let (first_child, last_child) = unsafe {
-    ((*node).first_child, (*node).last_child)
-  };
-  
+
+  let (first_child, last_child) = unsafe { ((*node).first_child, (*node).last_child) };
+
   cb(depth, node);
-  
+
   if first_child.is_null() {
     return;
   } else {
     let mut current = first_child;
-    
+
     while current != last_child {
       iterate_proto_node(current, cb, depth + 1);
       current = (*current).next;
     }
-    
+
     iterate_proto_node(current, cb, depth + 1);
   }
 }
 
 fn iterate_proto_tree<F>(tree: *const raw::proto_tree, cb: F)
-where F: Fn(u16, *const raw::proto_tree) {
+where
+  F: Fn(u16, *const raw::proto_tree),
+{
   unsafe {
     iterate_proto_node(tree, &cb, 0);
   }
 }
-
 
 fn main() {
   let args = Args::parse();
@@ -70,39 +77,39 @@ fn main() {
 
   unsafe {
     raw::wtap_init(false);
-    
-    if !raw::epan_init(
-      None,
-      std::ptr::null_mut(),
-      false,
-    ) {
+
+    if !raw::epan_init(None, std::ptr::null_mut(), false) {
       println!("Failed to initialize EPAN");
       return;
     }
 
     let wt: *mut raw::wtap = raw::wtap_open_offline(
-        c_str.as_ptr(),
-        raw::WTAP_TYPE_AUTO,
-        (&mut err) as *mut ::std::os::raw::c_int,
-        (&mut err_info) as *mut *mut raw::gchar,
-        false);
-      
+      c_str.as_ptr(),
+      raw::WTAP_TYPE_AUTO,
+      (&mut err) as *mut ::std::os::raw::c_int,
+      (&mut err_info) as *mut *mut raw::gchar,
+      false,
+    );
+
     let file_type = raw::wtap_file_type_subtype(wt);
-    
+
     let epan = do_epan_init();
-    
-    println!("Got err: {:?}, err_info: {:?}, wtap: {:?}", err, err_info, wt);
-    
+
+    println!(
+      "Got err: {:?}, err_info: {:?}, wtap: {:?}",
+      err, err_info, wt
+    );
+
     if wt.is_null() {
       println!("Could not open file. Bailing out.");
       return;
     }
-    
+
     let mut rec: raw::wtap_rec = mem::zeroed();
     let mut offset: raw::gint64 = 0;
-    
+
     raw::wtap_rec_init(&mut rec as *mut raw::wtap_rec, 2000);
-    
+
     loop {
       let mut fd: raw::frame_data = mem::zeroed();
       let ret = raw::wtap_read(
@@ -113,32 +120,31 @@ fn main() {
         (&mut offset) as *mut raw::gint64,
       );
 
-      println!("Reply after wtap_read: {}, {:?}, {:?}, {:?}", ret, err, err_info, offset);
-      
-      if ! ret {
+      println!(
+        "Reply after wtap_read: {}, {:?}, {:?}, {:?}",
+        ret, err, err_info, offset
+      );
+
+      if !ret {
         break;
       }
-      
+
       raw::frame_data_init(
         (&mut fd) as *mut raw::frame_data,
         1,
         (&mut rec) as *mut raw::wtap_rec,
         offset,
-        0);
-      
-      let mut edt: raw::epan_dissect_t = std::mem::zeroed();
-      
-      raw::epan_dissect_init(
-        (&mut edt) as *mut raw::epan_dissect_t,
-        epan,
-        true, 
-        true,
+        0,
       );
-      
+
+      let mut edt: raw::epan_dissect_t = std::mem::zeroed();
+
+      raw::epan_dissect_init((&mut edt) as *mut raw::epan_dissect_t, epan, true, false);
+
       // let mut cinfo: epan_column_info = std::mem::zeroed();
-      
+
       println!("file_type={}", file_type);
-      
+
       raw::epan_dissect_run(
         (&mut edt) as *mut raw::epan_dissect_t,
         file_type,
@@ -146,30 +152,35 @@ fn main() {
         (&mut fd) as *mut raw::frame_data,
         std::ptr::null_mut(),
       );
-      
+
       println!("fd: pkt_len={}, file_off={}", fd.pkt_len, fd.file_off);
-      
+
       /*
       epan_dissect_fill_in_columns(
-        (&mut edt) as *mut epan_dissect_t,
+       (&mut edt) as *mut epan_dissect_t,
         true, true);
       */
-      
+
       let stream = raw::print_stream_text_stdio_new(raw::stdout);
-      
+
       iterate_proto_tree(edt.tree, |depth, node| {
-        let finfo = unsafe { (*node).finfo};
+        let finfo = unsafe { (*node).finfo };
+        let nhfinfo = unsafe {
+          if (*node).parent.is_null() {
+            std::ptr::null_mut()
+          } else {
+            (*node).hfinfo
+          }
+        };
         let hfinfo = if finfo.is_null() {
           std::ptr::null_mut()
         } else {
-          unsafe {
-            (*finfo).hfinfo
-          }
+          unsafe { (*finfo).hfinfo }
         };
-        let abbrev = if hfinfo.is_null() {
+        let abbrev = if nhfinfo.is_null() {
           ""
         } else {
-          let char_ptr = unsafe { (*hfinfo).abbrev };
+          let char_ptr = unsafe { (*nhfinfo).abbrev };
           let str = unsafe { CStr::from_ptr(char_ptr) };
           str.to_str().unwrap()
         };
@@ -183,7 +194,7 @@ fn main() {
         } else {
           (*finfo).proto_layer_num
         };
-        
+
         let fvt = if finfo.is_null() {
           "NULL"
         } else {
@@ -191,7 +202,16 @@ fn main() {
           let str = unsafe { CStr::from_ptr(char_ptr) };
           str.to_str().unwrap()
         };
-        
+
+        let fvl = if finfo.is_null()
+          || (*finfo).value.is_null()
+          || (*(*(*finfo).value).ftype).len.is_none()
+        {
+          0
+        } else {
+          fvalue_length2((*finfo).value)
+        };
+
         let fv = if finfo.is_null() || (*finfo).value.is_null() {
           "NULL"
         } else {
@@ -208,13 +228,23 @@ fn main() {
           }
         };
 
-        println!("{}{:?}: {:?}, {:?}, abbrev={}, tln={}, pln={}, fvt={}, fv={}",
+        println!(
+          "{}{:?}: {:?}, {:?}/{:?}, abbrev={}, tln={}, pln={}, fvt={}, fvl={}, fv={}, proto_data={:}",
           ".".repeat(depth as usize),
-          node, finfo, hfinfo, abbrev,
-          tln, pln, fvt, fv,
+          node,
+          finfo,
+          nhfinfo,
+          hfinfo,
+          abbrev,
+          tln,
+          pln,
+          fvt,
+          fvl,
+          fv,
+          g_slist_length((*(*(*node).tree_data).pinfo).proto_data),
         );
       });
-      
+
       raw::proto_tree_print(
         raw::print_dissections_e_print_dissections_expanded,
         true,
@@ -222,7 +252,7 @@ fn main() {
         std::ptr::null_mut(),
         stream,
       );
-      
+
       raw::wtap_rec_reset((&mut rec) as *mut raw::wtap_rec);
     }
   }

@@ -1,11 +1,10 @@
+use std::fmt;
 use std::pin::Pin;
 use std::{cell::RefCell, ffi::CString, rc::Rc};
-use std::fmt;
 
 use crate::*;
 
 use crate::error::WsError;
-
 
 pub struct Wtap {
   path: String,
@@ -22,7 +21,7 @@ impl Drop for Wtap {
 }
 
 pub struct InnerWtapRec {
-  pub (crate) rec: raw::wtap_rec,
+  pub(crate) rec: raw::wtap_rec,
 }
 
 impl fmt::Debug for InnerWtapRec {
@@ -32,9 +31,9 @@ impl fmt::Debug for InnerWtapRec {
 }
 
 pub struct WtapRec {
-  pub (crate) rec: Rc<RefCell<InnerWtapRec>>,
-  pub (crate) offset: raw::gint64,
-  pub (crate) file_type: i32,
+  pub(crate) rec: Rc<RefCell<InnerWtapRec>>,
+  pub(crate) offset: raw::gint64,
+  pub(crate) file_type: i32,
 }
 
 impl Drop for InnerWtapRec {
@@ -51,7 +50,7 @@ impl InnerWtapRec {
       let mut rec = InnerWtapRec {
         rec: std::mem::zeroed(),
       };
-      
+
       raw::wtap_rec_init((&mut rec.rec) as *mut raw::wtap_rec, 2048);
 
       rec
@@ -67,7 +66,7 @@ impl WtapRec {
       file_type: 0,
     }
   }
-  
+
   fn set_file_type(&mut self, ftype: i32) {
     self.file_type = ftype;
   }
@@ -76,9 +75,9 @@ impl WtapRec {
 impl Wtap {
   pub fn new(path: String) -> Result<Wtap, WsError> {
     let mut err = WsError::new();
-    
+
     let cstr = CString::new(path.clone()).unwrap();
-    
+
     unsafe {
       let wth = raw::wtap_open_offline(
         cstr.as_ptr(),
@@ -87,10 +86,10 @@ impl Wtap {
         (&mut err.errInfo) as *mut *mut raw::gchar,
         false,
       );
-      
+
       if wth.is_null() {
         Err(err)
-      } else{
+      } else {
         let file_type = raw::wtap_file_type_subtype(wth);
         Ok(Wtap {
           wth,
@@ -100,14 +99,14 @@ impl Wtap {
       }
     }
   }
-  
+
   pub fn read(&mut self) -> Result<WtapRec, Error> {
     let mut rec: WtapRec = WtapRec::new();
-    
+
     let mut err = WsError::new();
-    
+
     rec.set_file_type(self.file_type);
-    
+
     unsafe {
       let ret = raw::wtap_read(
         self.wth,
@@ -116,26 +115,22 @@ impl Wtap {
         (&mut err.errInfo) as *mut *mut raw::gchar,
         (&mut rec.offset) as *mut raw::gint64,
       );
-      
+
       if err.err != 0 {
         return Err(Error::WsError(err));
       }
-      
-      if ret {
-        Ok(rec)
-      } else {
-        Err(Error::EOF)
-      }
+
+      if ret { Ok(rec) } else { Err(Error::EOF) }
     }
   }
-  
+
   pub fn seek_read(&mut self, offset: i64) -> Result<WtapRec, WsError> {
     let mut rec: WtapRec = WtapRec::new();
-    
+
     let mut err = WsError::new();
-    
+
     rec.set_file_type(self.file_type);
-    
+
     unsafe {
       let ret = raw::wtap_seek_read(
         self.wth,
@@ -144,7 +139,7 @@ impl Wtap {
         (&mut err.err) as *mut ::std::os::raw::c_int,
         (&mut err.errInfo) as *mut *mut raw::gchar,
       );
-      
+
       if ret {
         Err(err)
       } else {

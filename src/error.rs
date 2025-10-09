@@ -26,5 +26,6 @@ impl Display for WsError {
 #[derive(Debug)]
 pub enum Error {
   EOF,
+  NotDissected,
   WsError(WsError),
 }

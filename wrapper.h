@@ -7,6 +7,8 @@
 #include <epan/epan.h>
 #include <epan/epan_dissect.h>
 #include <epan/print.h>
+#include <epan/ftypes/ftypes.h>
+#include <epan/ftypes/ftypes-int.h>
 #include <wiretap/wtap.h>
 
 #endif
