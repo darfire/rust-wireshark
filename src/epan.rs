@@ -61,7 +61,7 @@ impl ParsedRec {
     }
   }
 
-  pub fn prime_dfilter(&self, dfilter: &DFilter) -> () {
+  pub fn prime_with_dfilter(&self, dfilter: &DFilter) -> () {
     unsafe {
       raw::epan_dissect_prime_with_dfilter(
         (&mut self.inner_pr.borrow_mut().edt) as *mut raw::epan_dissect_t,

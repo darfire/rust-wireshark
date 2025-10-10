@@ -34,7 +34,7 @@ fn main() {
         
         let mut prec = session.new_prec(&mut rec);
         
-        prec.prime_dfilter(&dfilter);
+        prec.prime_with_dfilter(&dfilter);
 
         prec.dissect();
         
