@@ -23,7 +23,7 @@ fn main() {
 
   let session = Session::new();
   
-  let dfilter = DFilter::new("udp.srcport == 53".to_string()).unwrap();
+  let dfilter = DFilter::new("udp.port == 53".to_string()).unwrap();
 
   loop {
     let rec = wtap.read();
@@ -41,9 +41,9 @@ fn main() {
         let root_node = prec.get_root_node().unwrap();
 
         if dfilter.apply_rec(&prec) {
-          println!("Record matches {}", dfilter);
+          println!("Record MATCHES {}", dfilter);
         } else {
-          println!("Record does not match {}", dfilter);
+          println!("Record does NOT MATCH {}", dfilter);
         }
 
         println!(
